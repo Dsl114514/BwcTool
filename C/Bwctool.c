@@ -1,187 +1,209 @@
-using System;
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 
-class Program
+#define MAX_WIRES 6
+#define MAX_COLOR_LENGTH 10
+#define MAX_INPUT_LENGTH 256
+
+int determineWireToCut(char wires[][MAX_COLOR_LENGTH], int wireCount, int lastDigitOdd);
+int cutThreeWires(char wires[][MAX_COLOR_LENGTH]);
+int cutFourWires(char wires[][MAX_COLOR_LENGTH], int lastDigitOdd);
+int cutFiveWires(char wires[][MAX_COLOR_LENGTH], int lastDigitOdd);
+int cutSixWires(char wires[][MAX_COLOR_LENGTH], int lastDigitOdd);
+int hasWireColor(char wires[][MAX_COLOR_LENGTH], int wireCount, const char *color);
+int countWireColor(char wires[][MAX_COLOR_LENGTH], int wireCount, const char *color);
+int findLastWireColor(char wires[][MAX_COLOR_LENGTH], int wireCount, const char *color);
+
+int main()
 {
-    static void Main()
+    char input[MAX_INPUT_LENGTH];
+    char serialNumber[MAX_INPUT_LENGTH];
+    char wires[MAX_WIRES][MAX_COLOR_LENGTH];
+    int wireCount;
+    int lastDigitOdd;
+    int wireToCutIndex;
+
+    while (1)
     {
-        while (true)
+        printf("炸弹拆除助手\n");
+        printf("请输入电线颜色序列（用空格分隔，例如：红 蓝 白）：");
+        if (fgets(input, sizeof(input), stdin) == NULL)
         {
-            Console.WriteLine("炸弹拆除助手");
-            Console.WriteLine("请输入电线颜色序列（用空格分隔，例如：红 蓝 白）：");
-            string input = Console.ReadLine();
-
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                Console.WriteLine("输入不能为空！");
-                return;
-            }
-
-            string[] wires = input.Split(' ');
-            int wireCount = wires.Length;
-
-            Console.WriteLine("请输入序列号（最后一位用于判断）：");
-            string serialNumber = Console.ReadLine();
-
-            if (string.IsNullOrWhiteSpace(serialNumber))
-            {
-                Console.WriteLine("序列号不能为空！");
-                return;
-            }
-
-            char lastDigit = serialNumber[serialNumber.Length - 1];
-            bool lastDigitOdd = (lastDigit - '0') % 2 == 1;
-
-            int wireToCut = DetermineWireToCut(wires, lastDigitOdd);
-
-            if (wireToCut == -1)
-            {
-                Console.WriteLine("无效的电线数量！支持3-6根电线。");
-            }
-            else
-            {
-                Console.WriteLine($"剪断第{wireToCut + 1}根电线 ({wires[wireToCut]})");
-                Console.WriteLine("炸弹已成功拆除！");
-            }
+            printf("输入错误！\n");
+            return 1;
         }
 
-        static int DetermineWireToCut(string[] wires, bool lastDigitOdd)
+        // 移除换行符
+        size_t len = strlen(input);
+        if (len > 0 && input[len - 1] == '\n')
         {
-            int wireCount = wires.Length;
-
-            switch (wireCount)
-            {
-                case 3:
-                    return CutThreeWires(wires);
-                case 4:
-                    return CutFourWires(wires, lastDigitOdd);
-                case 5:
-                    return CutFiveWires(wires, lastDigitOdd);
-                case 6:
-                    return CutSixWires(wires, lastDigitOdd);
-                default:
-                    return -1;
-            }
+            input[len - 1] = '\0';
         }
 
-        static int CutThreeWires(string[] wires)
+        if (strlen(input) == 0)
         {
-            // 规则1: 如果没有红线，则剪断第二根线
-            if (!HasWireColor(wires, "红"))
-                return 1; // 第二根线（索引1）
-
-            // 规则2: 当最后一根线为白线时，剪断最后一根线
-            if (wires[2] == "白")
-                return 2; // 最后一根线（索引2）
-
-            // 规则3: 当有不止一根蓝线的时候，剪断最后一根蓝线
-            int blueCount = CountWireColor(wires, "蓝");
-            if (blueCount > 1)
-                return FindLastWireColor(wires, "蓝");
-
-            // 规则4: 否则，剪断最后一根线
-            return 2;
+            printf("输入不能为空！\n");
+            continue;
         }
 
-        static int CutFourWires(string[] wires, bool lastDigitOdd)
+        // 分割输入字符串
+        char *token = strtok(input, " ");
+        wireCount = 0;
+        while (token != NULL && wireCount < MAX_WIRES)
         {
-            int redCount = CountWireColor(wires, "红");
-
-            // 规则1: 如果有不止一根红线且序列号末位为奇数，则剪断最后一根红线
-            if (redCount > 1 && lastDigitOdd)
-                return FindLastWireColor(wires, "红");
-
-            // 规则2: 当没有红线且最后一根线是黄线时，剪断第一根线
-            if (redCount == 0 && wires[3] == "黄")
-                return 0; // 第一根线（索引0）
-
-            // 规则3: 当有且仅有一根蓝线时，剪断第一根线
-            int blueCount = CountWireColor(wires, "蓝");
-            if (blueCount == 1)
-                return 0;
-
-            // 规则4: 当有不止一根黄线时，剪断最后一根线
-            int yellowCount = CountWireColor(wires, "黄");
-            if (yellowCount > 1)
-                return 3; // 最后一根线（索引3）
-
-            // 规则5: 否则，剪断第二根线
-            return 1; // 第二根线（索引1）
+            strcpy(wires[wireCount], token);
+            wireCount++;
+            token = strtok(NULL, " ");
         }
 
-        static int CutFiveWires(string[] wires, bool lastDigitOdd)
+        if (wireCount < 3 || wireCount > 6)
         {
-            // 规则1: 如果最后一根线是黑线且序列号末位为奇数，则剪断第四根线
-            if (wires[4] == "黑" && lastDigitOdd)
-                return 3; // 第四根线（索引3）
-
-            int redCount = CountWireColor(wires, "红");
-            int yellowCount = CountWireColor(wires, "黄");
-
-            // 规则2: 当有且仅有一根红线，且黄线不止一根时，剪断第一根线
-            if (redCount == 1 && yellowCount > 1)
-                return 0; // 第一根线（索引0）
-
-            // 规则3: 当没有黑线时，剪断第二根线
-            if (!HasWireColor(wires, "黑"))
-                return 1; // 第二根线（索引1）
-
-            // 规则4: 否则，剪断第一根线
-            return 0;
+            printf("无效的电线数量！支持3-6根电线。\n");
+            continue;
         }
 
-        static int CutSixWires(string[] wires, bool lastDigitOdd)
+        printf("请输入序列号（最后一位用于判断）：");
+        if (fgets(serialNumber, sizeof(serialNumber), stdin) == NULL)
         {
-            int yellowCount = CountWireColor(wires, "黄");
-            int whiteCount = CountWireColor(wires, "白");
-
-            // 规则1: 如果没有黄线且序列号末位为奇数，则剪断第三根线
-            if (yellowCount == 0 && lastDigitOdd)
-                return 2; // 第三根线（索引2）
-
-            // 规则2: 当有且仅有一根黄线，且白线不止一根时，剪断第四根线
-            if (yellowCount == 1 && whiteCount > 1)
-                return 3; // 第四根线（索引3）
-
-            // 规则3: 当没有红线时，剪断最后一根线
-            if (!HasWireColor(wires, "红"))
-                return 5; // 最后一根线（索引5）
-
-            // 规则4: 否则，剪断第四根线
-            return 3;
+            printf("序列号读取失败！\n");
+            return 1;
         }
 
-        // 辅助函数：检查是否存在指定颜色的电线
-        static bool HasWireColor(string[] wires, string color)
+        len = strlen(serialNumber);
+        if (len > 0 && serialNumber[len - 1] == '\n')
         {
-            foreach (string wire in wires)
-            {
-                if (wire == color)
-                    return true;
-            }
-            return false;
+            serialNumber[len - 1] = '\0';
         }
 
-        // 辅助函数：统计指定颜色电线的数量
-        static int CountWireColor(string[] wires, string color)
+        if (strlen(serialNumber) == 0)
         {
-            int count = 0;
-            foreach (string wire in wires)
-            {
-                if (wire == color)
-                    count++;
-            }
-            return count;
+            printf("序列号不能为空！\n");
+            continue;
         }
 
-        // 辅助函数：找到最后一根指定颜色电线的索引
-        static int FindLastWireColor(string[] wires, string color)
+        // 检查序列号最后一位是否为数字
+        char lastChar = serialNumber[strlen(serialNumber) - 1];
+        if (!isdigit(lastChar))
         {
-            for (int i = wires.Length - 1; i >= 0; i--)
-            {
-                if (wires[i] == color)
-                    return i;
-            }
-            return -1; // 如果没找到，返回-1
+            printf("序列号最后一位必须是数字！\n");
+            continue;
+        }
+
+        lastDigitOdd = (lastChar - '0') % 2 == 1;
+
+        wireToCutIndex = determineWireToCut(wires, wireCount, lastDigitOdd);
+
+        if (wireToCutIndex == -1)
+        {
+            printf("无效的电线数量！支持3-6根电线。\n");
+        }
+        else
+        {
+            printf("剪断第%d根电线 (%s)\n", wireToCutIndex + 1, wires[wireToCutIndex]);
+            printf("炸弹已成功拆除！\n");
         }
     }
+
+    return 0;
+}
+
+int determineWireToCut(char wires[][MAX_COLOR_LENGTH], int wireCount, int lastDigitOdd)
+{
+    switch (wireCount)
+    {
+    case 3:
+        return cutThreeWires(wires);
+    case 4:
+        return cutFourWires(wires, lastDigitOdd);
+    case 5:
+        return cutFiveWires(wires, lastDigitOdd);
+    case 6:
+        return cutSixWires(wires, lastDigitOdd);
+    default:
+        return -1;
+    }
+}
+
+int cutThreeWires(char wires[][MAX_COLOR_LENGTH])
+{
+    if (!hasWireColor(wires, 3, "红"))
+        return 1;
+    if (strcmp(wires[2], "白") == 0)
+        return 2;
+    if (countWireColor(wires, 3, "蓝") > 1)
+        return findLastWireColor(wires, 3, "蓝");
+    return 2;
+}
+
+int cutFourWires(char wires[][MAX_COLOR_LENGTH], int lastDigitOdd)
+{
+    int redCount = countWireColor(wires, 4, "红");
+    if (redCount > 1 && lastDigitOdd)
+        return findLastWireColor(wires, 4, "红");
+    if (redCount == 0 && strcmp(wires[3], "黄") == 0)
+        return 0;
+    if (countWireColor(wires, 4, "蓝") == 1)
+        return 0;
+    if (countWireColor(wires, 4, "黄") > 1)
+        return 3;
+    return 1;
+}
+
+int cutFiveWires(char wires[][MAX_COLOR_LENGTH], int lastDigitOdd)
+{
+    if (strcmp(wires[4], "黑") == 0 && lastDigitOdd)
+        return 3;
+    int redCount = countWireColor(wires, 5, "红");
+    int yellowCount = countWireColor(wires, 5, "黄");
+    if (redCount == 1 && yellowCount > 1)
+        return 0;
+    if (!hasWireColor(wires, 5, "黑"))
+        return 1;
+    return 0;
+}
+
+int cutSixWires(char wires[][MAX_COLOR_LENGTH], int lastDigitOdd)
+{
+    int yellowCount = countWireColor(wires, 6, "黄");
+    int whiteCount = countWireColor(wires, 6, "白");
+    if (yellowCount == 0 && lastDigitOdd)
+        return 2;
+    if (yellowCount == 1 && whiteCount > 1)
+        return 3;
+    if (!hasWireColor(wires, 6, "红"))
+        return 5;
+    return 3;
+}
+
+int hasWireColor(char wires[][MAX_COLOR_LENGTH], int wireCount, const char *color)
+{
+    for (int i = 0; i < wireCount; i++)
+    {
+        if (strcmp(wires[i], color) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+int countWireColor(char wires[][MAX_COLOR_LENGTH], int wireCount, const char *color)
+{
+    int count = 0;
+    for (int i = 0; i < wireCount; i++)
+    {
+        if (strcmp(wires[i], color) == 0)
+            count++;
+    }
+    return count;
+}
+
+int findLastWireColor(char wires[][MAX_COLOR_LENGTH], int wireCount, const char *color)
+{
+    for (int i = wireCount - 1; i >= 0; i--)
+    {
+        if (strcmp(wires[i], color) == 0)
+            return i;
+    }
+    return -1;
 }
